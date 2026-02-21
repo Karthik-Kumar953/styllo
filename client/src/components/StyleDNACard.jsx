@@ -424,7 +424,7 @@ function InnerCard({ dna, topColors, skinTone, percentile, seasonEmoji }) {
           boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
         }}>
           <QRCodeSVG
-            value="https://styllo.app"
+            value="https://styllo.onrender.com/"
             size={64}
             bgColor="white"
             fgColor="#0a0015"
