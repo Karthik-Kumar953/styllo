@@ -1,5 +1,24 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
+
+# Environment variables (NEVER commit these)
 .env
+.env.local
+.env.production.local
+
+# Vercel
 .vercel
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json

@@ -13,13 +13,22 @@ const sectionAnim = {
   visible: (i) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.5 } }),
 };
 
-export default function ResultsView({ data, gender, onRestart }) {
+export default function ResultsView({ data, gender, onGenderChange, onRestart }) {
   const [showDNACard, setShowDNACard] = useState(false);
 
   if (!data?.recommendations) return null;
   const r = data.recommendations;
   const dna = r.styleDNA;
   const outfitsWithLinks = generateShoppingLinks(data.skinTone, gender, r.outfitSuggestions || []);
+
+  const toggleGender = () => {
+    const next = gender === "Male" ? "Female" : "Male";
+    if (onGenderChange) onGenderChange(next);
+  };
+
+  const genderProb = data.genderProbability
+    ? `${Math.round((data.genderProbability || 0) * 100)}%`
+    : null;
 
   return (
     <div className="w-full flex flex-col gap-8 pt-4 pb-8">
@@ -50,6 +59,25 @@ export default function ResultsView({ data, gender, onRestart }) {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Gender Auto-Detection Banner ── */}
+      {gender && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center gap-3 py-2"
+        >
+          <span className="text-zinc-500 text-xs flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-primary-400" />
+            AI detected: <span className="text-zinc-300 font-semibold">{gender}</span>
+            {genderProb && <span className="text-zinc-600">({genderProb})</span>}
+          </span>
+          <button
+            onClick={toggleGender}
+            className="text-xs text-primary-400 hover:text-primary-300 underline underline-offset-2 cursor-pointer transition-colors"
+          >
+            Change
+          </button>
+        </motion.div>
+      )}
 
       {/* ── Style DNA Section — NEW ── */}
       {dna && (

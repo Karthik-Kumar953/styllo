@@ -81,25 +81,21 @@ function AnalyzerFlow() {
     navigate("/analyze");
   }, [navigate]);
 
-  // Photo paths
+  // Photo paths — skip gender selection, go straight to analysis
   const handleImageSelect = useCallback((file) => {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-    navigate("/analyze/gender");
+    navigate("/analyze/analyzing");
   }, [navigate]);
 
   const handleLiveCapture = useCallback((file, preview) => {
     setImageFile(file);
     setImagePreview(preview);
-    navigate("/analyze/gender");
-  }, [navigate]);
-
-  const handleGenderSelect = useCallback((g) => {
-    setGender(g);
     navigate("/analyze/analyzing");
   }, [navigate]);
 
   const handleAnalysisComplete = useCallback((result) => {
+    setGender(result.detectedGender || result.gender || null);
     setAnalysisResult(result);
     navigate("/analyze/results");
   }, [navigate]);
@@ -211,21 +207,17 @@ function AnalyzerFlow() {
               </motion.div>
             } />
 
-            <Route path="gender" element={
-              <motion.div {...pageVariants}>
-                <GenderSelect imagePreview={imagePreview} onSelect={handleGenderSelect} onBack={goToChoose} />
-              </motion.div>
-            } />
+            {/* Gender is now auto-detected by face-api.js — GenderSelect page removed */}
 
             <Route path="analyzing" element={
               <motion.div {...pageVariants}>
-                <AnalysisView imageFile={imageFile} gender={gender} onComplete={handleAnalysisComplete} onError={handleRestart} />
+                <AnalysisView imageFile={imageFile} onComplete={handleAnalysisComplete} onError={handleRestart} />
               </motion.div>
             } />
 
             <Route path="results" element={
               <motion.div {...pageVariants}>
-                <ResultsView data={analysisResult} gender={gender} onRestart={handleRestart} />
+                <ResultsView data={analysisResult} gender={gender} onGenderChange={setGender} onRestart={handleRestart} />
               </motion.div>
             } />
           </Routes>

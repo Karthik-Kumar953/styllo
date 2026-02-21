@@ -12,7 +12,7 @@ const STAGES = [
   { msg: "Generating your style guide...", icon: "✨" },
 ];
 
-export default function AnalysisView({ imageFile, gender, onComplete, onError }) {
+export default function AnalysisView({ imageFile, onComplete, onError }) {
   const { analyze, stage, error: detectionError } = useSkinToneDetection();
   const [currentStage, setCurrentStage] = useState(0);
   const [apiError, setApiError] = useState(null);
@@ -29,9 +29,14 @@ export default function AnalysisView({ imageFile, gender, onComplete, onError })
         const result = await analyze(imageFile);
         setCurrentStage(STAGES.length - 1);
 
-        const apiResult = await getRecommendations(result.skinTone, result.confidence, gender);
+        // Use auto-detected gender from face-api.js
+        const autoGender = result.detectedGender
+          ? result.detectedGender.charAt(0).toUpperCase() + result.detectedGender.slice(1)
+          : "Male"; // fallback
+
+        const apiResult = await getRecommendations(result.skinTone, result.confidence, autoGender);
         clearInterval(ticker);
-        onComplete({ ...result, ...apiResult });
+        onComplete({ ...result, ...apiResult, detectedGender: autoGender, genderProbability: result.genderProbability });
       } catch (err) {
         console.error("Analysis failed:", err);
         setApiError(detectionError || err.message || "Something went wrong.");
@@ -52,7 +57,7 @@ export default function AnalysisView({ imageFile, gender, onComplete, onError })
           </div>
           <p className="text-red-300 text-sm">{hasError}</p>
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onError}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-primary-600 to-rose-500 text-white text-sm font-medium"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-linear-to-r from-primary-600 to-rose-500 text-white text-sm font-medium"
           >
             <RefreshCw className="w-4 h-4" /> Try Again
           </motion.button>
@@ -87,7 +92,7 @@ export default function AnalysisView({ imageFile, gender, onComplete, onError })
             <motion.div
               animate={{ width: `${((currentStage + 1) / STAGES.length) * 100}%` }}
               transition={{ duration: 0.5 }}
-              className="h-full rounded-full bg-gradient-to-r from-primary-500 to-rose-500"
+              className="h-full rounded-full bg-linear-to-r from-primary-500 to-rose-500"
             />
           </div>
         </motion.div>

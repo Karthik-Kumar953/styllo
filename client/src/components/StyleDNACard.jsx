@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { toPng } from "html-to-image";
 import { Download, Share2, X } from "lucide-react";
@@ -7,38 +8,30 @@ import { QRCodeSVG } from "qrcode.react";
 /**
  * StyleDNACard — Spotify-Wrapped–style shareable identity card.
  *
- * Renders at 1080×1920 (9:16 Instagram Story) INTERNALLY.
- * The preview scales responsively to fit within the viewport.
- * Exported at native 1080×1920 via html-to-image.
+ * Renders at 1080×1920 (9:16 Instagram Story) internally.
+ * Uses a React Portal to overlay on top of EVERYTHING (fixes
+ * broken `position: fixed` caused by Framer Motion transforms).
  *
- * NOTE: We NEED html-to-image because we are converting a live DOM node to PNG.
- *       An <a download> only works for existing file URLs, not DOM→image capture.
+ * On download, the CSS `transform: scale()` is stripped via
+ * html-to-image's `style` override so the full 1080×1920 is captured.
  */
 export default function StyleDNACard({ dna, colors = [], skinTone, onClose }) {
   const cardRef = useRef(null);
-  const containerRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.3); // safe default
 
   // Card native dimensions — 9:16 Story format
   const W = 1080;
   const H = 1920;
-
-  if (!dna) return null;
-
-  const topColors = (colors || []).slice(0, 5);
-  const percentile = Math.max(88, Math.min(99, (dna.styleScore || 85) + Math.floor(Math.random() * 8)));
-  const seasonEmoji = { Spring: "🌸", Summer: "☀️", Autumn: "🍂", Winter: "❄️" }[dna.colorSeason] || "✨";
 
   // Dynamically calculate scale to fit viewport
   useEffect(() => {
     function calcScale() {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const pad = 100; // padding for buttons + margins
+      const pad = 120; // room for buttons + margins
       const availH = vh - pad;
-      const availW = vw - 48; // side padding
-      // Scale so the card fits both width and height
+      const availW = vw - 64; // side padding
       const s = Math.min(availW / W, availH / H, 1);
       setScale(s);
     }
@@ -47,11 +40,33 @@ export default function StyleDNACard({ dna, colors = [], skinTone, onClose }) {
     return () => window.removeEventListener("resize", calcScale);
   }, []);
 
+  // Lock body scroll while card is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  if (!dna) return null;
+
+  const topColors = (colors || []).slice(0, 5);
+  const percentile = Math.max(88, Math.min(99, (dna.styleScore || 85) + Math.floor(Math.random() * 8)));
+  const seasonEmoji = { Spring: "🌸", Summer: "☀️", Autumn: "🍂", Winter: "❄️" }[dna.colorSeason] || "✨";
+
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
     try {
-      const dataUrl = await toPng(cardRef.current, { quality: 1, pixelRatio: 1 });
+      // Override transform so we capture at native 1080×1920, not scaled
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 1,
+        width: W,
+        height: H,
+        style: {
+          transform: "none",
+          position: "static",
+        },
+      });
       const link = document.createElement("a");
       link.download = `styllo-dna-${dna.archetype?.replace(/\s+/g, "-").toLowerCase() || "card"}.png`;
       link.href = dataUrl;
@@ -65,7 +80,16 @@ export default function StyleDNACard({ dna, colors = [], skinTone, onClose }) {
   const handleShare = async () => {
     if (!cardRef.current) return;
     try {
-      const dataUrl = await toPng(cardRef.current, { quality: 1, pixelRatio: 1 });
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 1,
+        width: W,
+        height: H,
+        style: {
+          transform: "none",
+          position: "static",
+        },
+      });
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], "styllo-dna.png", { type: "image/png" });
       if (navigator.share && navigator.canShare({ files: [file] })) {
@@ -78,32 +102,51 @@ export default function StyleDNACard({ dna, colors = [], skinTone, onClose }) {
     }
   };
 
-  const previewW = W * scale;
-  const previewH = H * scale;
+  const previewW = Math.round(W * scale);
+  const previewH = Math.round(H * scale);
 
-  return (
+  // Render via Portal so Framer Motion transforms on ancestors don't break position:fixed
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.92)",
+        backdropFilter: "blur(20px)",
+        padding: 16,
+      }}
       onClick={onClose}
     >
-      <div className="relative flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, position: "relative" }} onClick={(e) => e.stopPropagation()}>
         {/* Close */}
-        <button onClick={onClose} className="cursor-pointer absolute -top-2 -right-2 z-50 w-8 h-8 rounded-full bg-zinc-800/80 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
-          <X className="w-3.5 h-3.5" />
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: -8, right: -8, zIndex: 50,
+            width: 32, height: 32, borderRadius: "50%",
+            background: "rgba(39,39,42,0.8)", border: "1px solid rgba(255,255,255,0.1)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#a1a1aa", cursor: "pointer",
+          }}
+        >
+          <X size={14} />
         </button>
 
         {/* Scaled Card Preview */}
         <div
-          ref={containerRef}
           style={{
             width: previewW,
             height: previewH,
             position: "relative",
             overflow: "hidden",
-            borderRadius: 12 * scale,
+            borderRadius: Math.round(16 * scale),
             boxShadow: "0 25px 80px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(255,255,255,0.08)",
           }}
         >
@@ -125,27 +168,41 @@ export default function StyleDNACard({ dna, colors = [], skinTone, onClose }) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-2.5 w-full" style={{ maxWidth: previewW }}>
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+        <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: previewW }}>
+          <button
             onClick={handleDownload}
             disabled={downloading}
-            className="cursor-pointer flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary-600 text-white font-bold text-sm shadow-lg shadow-primary-500/30 hover:bg-primary-500 transition-colors"
+            style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "12px 0", borderRadius: 12,
+              background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
+              color: "white", fontWeight: 700, fontSize: 14,
+              border: "none", cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(124,58,237,0.3)",
+              opacity: downloading ? 0.6 : 1,
+            }}
           >
-            <Download className="w-4 h-4" />
+            <Download size={16} />
             {downloading ? "Saving..." : "Save Card"}
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+          </button>
+          <button
             onClick={handleShare}
-            className="cursor-pointer flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-zinc-800 border border-white/10 text-white font-bold text-sm hover:bg-zinc-700 transition-colors"
+            style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "12px 0", borderRadius: 12,
+              background: "rgba(39,39,42,0.9)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "white", fontWeight: 700, fontSize: 14,
+              cursor: "pointer",
+            }}
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 size={16} />
             Share
-          </motion.button>
+          </button>
         </div>
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
