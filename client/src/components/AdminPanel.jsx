@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   LayoutDashboard, Users, Activity, Palette, Shirt, Clock,
-  TrendingUp, ChevronLeft, RefreshCw, Loader2, AlertCircle,
+  TrendingUp, RefreshCw, Loader2, AlertCircle,
   ArrowLeft,
 } from "lucide-react";
 
@@ -14,7 +14,11 @@ const API_BASE = import.meta.env.VITE_API_URL || "";
 
 // Chart colors
 const COLORS = ["#a855f7", "#ec4899", "#06b6d4", "#f59e0b", "#10b981", "#6366f1", "#f43f5e", "#14b8a6"];
-const MODE_COLORS = { photo: "#a855f7", text: "#06b6d4", form: "#f59e0b", Unknown: "#6b7280" };
+const MODE_COLORS = {
+  photo: "#a855f7", "live-capture": "#8b5cf6", text: "#06b6d4",
+  form: "#f59e0b", "decode-text": "#ec4899", "decode-image": "#f43f5e",
+  "trend-radar": "#10b981", Unknown: "#6b7280",
+};
 
 // Custom tooltip for dark theme
 function DarkTooltip({ active, payload, label }) {
@@ -31,9 +35,11 @@ function DarkTooltip({ active, payload, label }) {
   );
 }
 
-// Custom pie label
-function renderPieLabel({ name, percent }) {
-  return percent > 0.05 ? `${name} (${(percent * 100).toFixed(0)}%)` : "";
+// Custom pie label — shorter on mobile
+function renderPieLabel({ name, percent, cx, x }) {
+  if (percent < 0.05) return "";
+  const short = name?.length > 8 ? name.slice(0, 7) + "…" : name;
+  return `${short} ${(percent * 100).toFixed(0)}%`;
 }
 
 export default function AdminPanel({ onBack }) {
@@ -63,55 +69,55 @@ export default function AdminPanel({ onBack }) {
   const tabs = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "demographics", label: "Demographics", icon: Users },
-    { id: "styles", label: "Styles & Preferences", icon: Shirt },
+    { id: "styles", label: "Styles", icon: Shirt },
     { id: "trends", label: "Trends", icon: TrendingUp },
-    { id: "sessions", label: "Recent Sessions", icon: Clock },
+    { id: "sessions", label: "Sessions", icon: Clock },
   ];
 
   return (
     <div className="min-h-screen w-full bg-surface-950 text-white">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full glass border-b border-white/5">
-        <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
-          <button onClick={onBack} className="cursor-pointer flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to App
+        <div className="w-full px-3 sm:px-6 lg:px-8 flex items-center justify-between h-12 sm:h-14">
+          <button onClick={onBack} className="cursor-pointer flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors">
+            <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Back to App</span><span className="sm:hidden">Back</span>
           </button>
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary-400" />
-            <span className="font-display font-bold text-sm gradient-text">Styllo Admin</span>
+            <span className="font-display font-bold text-xs sm:text-sm gradient-text">Styllo Admin</span>
           </div>
-          <button onClick={fetchStats} className="cursor-pointer flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <button onClick={fetchStats} className="cursor-pointer flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors">
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </header>
 
-      <div className="flex w-full">
-        {/* Sidebar */}
-        <nav className="hidden sm:flex flex-col w-56 min-h-[calc(100vh-56px)] glass border-r border-white/5 p-3 gap-1">
+      <div className="flex flex-col sm:flex-row w-full">
+        {/* Sidebar — desktop only */}
+        <nav className="hidden sm:flex flex-col w-48 lg:w-56 min-h-[calc(100vh-56px)] glass border-r border-white/5 p-2 lg:p-3 gap-1 shrink-0">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`cursor-pointer flex items-center gap-2 lg:gap-3 px-2.5 lg:px-3 py-2 lg:py-2.5 rounded-xl text-xs lg:text-sm font-medium transition-all ${
                 activeTab === t.id
-                  ? "bg-gradient-to-r from-primary-600/20 to-transparent text-primary-300 border-l-2 border-primary-500"
+                  ? "bg-linear-to-r from-primary-600/20 to-transparent text-primary-300 border-l-2 border-primary-500"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
               }`}
             >
-              <t.icon className="w-4 h-4" />
-              {t.label}
+              <t.icon className="w-4 h-4 shrink-0" />
+              <span className="truncate">{t.label}</span>
             </button>
           ))}
         </nav>
 
-        {/* Mobile tabs */}
-        <div className="sm:hidden w-full flex overflow-x-auto gap-1 p-2 border-b border-white/5">
+        {/* Mobile tabs — horizontal scroll */}
+        <div className="sm:hidden w-full flex overflow-x-auto gap-1 px-2 py-2 border-b border-white/5 scrollbar-none">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              className={`cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${
                 activeTab === t.id
                   ? "bg-primary-600/20 text-primary-300"
                   : "text-zinc-500"
@@ -123,7 +129,7 @@ export default function AdminPanel({ onBack }) {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-auto min-w-0">
           {loading && (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
@@ -133,7 +139,7 @@ export default function AdminPanel({ onBack }) {
           {error && (
             <div className="flex flex-col items-center justify-center h-64 gap-4">
               <AlertCircle className="w-8 h-8 text-red-400" />
-              <p className="text-red-300 text-sm">{error}</p>
+              <p className="text-red-300 text-sm text-center px-4">{error}</p>
               <button onClick={fetchStats} className="cursor-pointer px-4 py-2 rounded-lg bg-primary-600/20 text-primary-300 text-sm">
                 Retry
               </button>
@@ -158,12 +164,12 @@ export default function AdminPanel({ onBack }) {
 // ── Stat Card ──
 function StatCard({ label, value, icon: Icon, color = "text-primary-400", gradient = "from-primary-600/15" }) {
   return (
-    <div className={`glass rounded-xl p-5 bg-gradient-to-br ${gradient} to-transparent`}>
-      <div className="flex items-center justify-between mb-3">
-        <Icon className={`w-5 h-5 ${color}`} />
+    <div className={`glass rounded-xl p-3 sm:p-5 bg-linear-to-br ${gradient} to-transparent`}>
+      <div className="flex items-center justify-between mb-2 sm:mb-3">
+        <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${color}`} />
       </div>
-      <div className="text-2xl font-bold text-white">{value}</div>
-      <div className="text-xs text-zinc-500 mt-1">{label}</div>
+      <div className="text-lg sm:text-2xl font-bold text-white truncate">{value}</div>
+      <div className="text-[10px] sm:text-xs text-zinc-500 mt-1 truncate">{label}</div>
     </div>
   );
 }
@@ -171,8 +177,8 @@ function StatCard({ label, value, icon: Icon, color = "text-primary-400", gradie
 // ── Chart Card ──
 function ChartCard({ title, children, className = "" }) {
   return (
-    <div className={`glass rounded-xl p-5 ${className}`}>
-      <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
+    <div className={`glass rounded-xl p-3 sm:p-5 ${className}`}>
+      <h3 className="text-xs sm:text-sm font-semibold text-white mb-3 sm:mb-4">{title}</h3>
       {children}
     </div>
   );
@@ -180,24 +186,24 @@ function ChartCard({ title, children, className = "" }) {
 
 // ═══════════ OVERVIEW TAB ═══════════
 function OverviewTab({ stats }) {
-  const topTone = stats.bySkinTone[0]?.name || "—";
-  const topMode = stats.byMode[0]?.name || "—";
+  const topTone = stats.bySkinTone?.[0]?.name || "—";
+  const topMode = stats.byMode?.[0]?.name || "—";
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-display font-bold">Dashboard Overview</h2>
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-lg sm:text-xl font-display font-bold">Dashboard Overview</h2>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat cards — 2 cols on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <StatCard label="Total Sessions" value={stats.totalSessions} icon={Activity} />
         <StatCard label="Today's Sessions" value={stats.todayCount} icon={TrendingUp} color="text-emerald-400" gradient="from-emerald-600/15" />
         <StatCard label="Most Popular Tone" value={topTone} icon={Palette} color="text-amber-400" gradient="from-amber-500/15" />
         <StatCard label="Top Input Mode" value={topMode} icon={LayoutDashboard} color="text-cyan-400" gradient="from-cyan-600/15" />
       </div>
 
-      {/* Sessions timeline */}
+      {/* Sessions timeline — shorter on mobile */}
       <ChartCard title="Sessions — Last 30 Days">
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 180 : 250}>
           <AreaChart data={stats.timeline}>
             <defs>
               <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -206,39 +212,39 @@ function OverviewTab({ stats }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-            <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#71717a", fontSize: 10 }} allowDecimals={false} />
+            <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 9 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: "#71717a", fontSize: 9 }} allowDecimals={false} width={25} />
             <Tooltip content={<DarkTooltip />} />
             <Area type="monotone" dataKey="sessions" stroke="#a855f7" fill="url(#areaGrad)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Mode + Gender summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Mode + Gender summary — stack on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <ChartCard title="Input Mode Distribution">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 220}>
             <PieChart>
-              <Pie data={stats.byMode} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byMode} cx="50%" cy="50%" outerRadius={window.innerWidth < 640 ? 60 : 80} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byMode.map((entry, i) => (
                   <Cell key={i} fill={MODE_COLORS[entry.name] || COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard title="Gender Distribution">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 220}>
             <PieChart>
-              <Pie data={stats.byGender} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byGender} cx="50%" cy="50%" outerRadius={window.innerWidth < 640 ? 60 : 80} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byGender.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
@@ -250,21 +256,26 @@ function OverviewTab({ stats }) {
 
 // ═══════════ DEMOGRAPHICS TAB ═══════════
 function DemographicsTab({ stats }) {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-display font-bold">Demographics</h2>
+  const isMobile = window.innerWidth < 640;
+  const chartH = isMobile ? 220 : 280;
+  const pieR = isMobile ? 55 : 90;
+  const pieInner = isMobile ? 30 : 50;
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-lg sm:text-xl font-display font-bold">Demographics</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* Gender pie */}
         <ChartCard title="Gender Breakdown">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <PieChart>
-              <Pie data={stats.byGender} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byGender} cx="50%" cy="50%" innerRadius={pieInner} outerRadius={pieR} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byGender.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
@@ -272,11 +283,11 @@ function DemographicsTab({ stats }) {
 
         {/* Age range bar */}
         <ChartCard title="Age Range Distribution">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <BarChart data={stats.byAgeRange} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis type="number" tick={{ fill: "#71717a", fontSize: 10 }} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 11 }} width={60} />
+              <XAxis type="number" tick={{ fill: "#71717a", fontSize: 9 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 10 }} width={50} />
               <Tooltip content={<DarkTooltip />} />
               <Bar dataKey="value" name="Sessions" radius={[0, 6, 6, 0]}>
                 {stats.byAgeRange.map((_, i) => (
@@ -289,11 +300,11 @@ function DemographicsTab({ stats }) {
 
         {/* Skin tone bar */}
         <ChartCard title="Skin Tone Distribution">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <BarChart data={stats.bySkinTone}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 10 }} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 9 }} />
+              <YAxis tick={{ fill: "#71717a", fontSize: 9 }} allowDecimals={false} width={25} />
               <Tooltip content={<DarkTooltip />} />
               <Bar dataKey="value" name="Sessions" radius={[6, 6, 0, 0]}>
                 {stats.bySkinTone.map((entry, i) => {
@@ -307,15 +318,15 @@ function DemographicsTab({ stats }) {
 
         {/* Undertone pie */}
         <ChartCard title="Undertone Distribution">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <PieChart>
-              <Pie data={stats.byUndertone} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byUndertone} cx="50%" cy="50%" innerRadius={pieInner} outerRadius={pieR} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byUndertone.map((_, i) => {
                   const utColors = ["#f59e0b", "#06b6d4", "#6b7280"];
                   return <Cell key={i} fill={utColors[i] || COLORS[i]} />;
                 })}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
@@ -327,18 +338,23 @@ function DemographicsTab({ stats }) {
 
 // ═══════════ STYLES TAB ═══════════
 function StylesTab({ stats }) {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-display font-bold">Styles & Preferences</h2>
+  const isMobile = window.innerWidth < 640;
+  const chartH = isMobile ? 220 : 280;
+  const pieR = isMobile ? 55 : 90;
+  const pieInner = isMobile ? 30 : 50;
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Style preferences bar */}
-        <ChartCard title="Most Popular Style Preferences" className="lg:col-span-2">
-          <ResponsiveContainer width="100%" height={280}>
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-lg sm:text-xl font-display font-bold">Styles & Preferences</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Style preferences bar — full width */}
+        <ChartCard title="Most Popular Style Preferences" className="sm:col-span-2">
+          <ResponsiveContainer width="100%" height={chartH}>
             <BarChart data={stats.byStylePref}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fill: "#a1a1aa", fontSize: 9 }} angle={isMobile ? -45 : -30} textAnchor="end" height={isMobile ? 70 : 60} interval={0} />
+              <YAxis tick={{ fill: "#71717a", fontSize: 9 }} allowDecimals={false} width={25} />
               <Tooltip content={<DarkTooltip />} />
               <Bar dataKey="value" name="Users" radius={[6, 6, 0, 0]}>
                 {stats.byStylePref.map((_, i) => (
@@ -351,14 +367,14 @@ function StylesTab({ stats }) {
 
         {/* Occasion pie */}
         <ChartCard title="Occasion Distribution">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <PieChart>
-              <Pie data={stats.byOccasion} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byOccasion} cx="50%" cy="50%" outerRadius={pieR} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byOccasion.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
@@ -366,15 +382,15 @@ function StylesTab({ stats }) {
 
         {/* Budget pie */}
         <ChartCard title="Budget Distribution">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={chartH}>
             <PieChart>
-              <Pie data={stats.byBudget} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" label={renderPieLabel} labelLine={false}>
+              <Pie data={stats.byBudget} cx="50%" cy="50%" innerRadius={pieInner} outerRadius={pieR} dataKey="value" label={renderPieLabel} labelLine={false}>
                 {stats.byBudget.map((_, i) => {
                   const bColors = ["#10b981", "#f59e0b", "#a855f7"];
                   return <Cell key={i} fill={bColors[i] || COLORS[i]} />;
                 })}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
               <Tooltip content={<DarkTooltip />} />
             </PieChart>
           </ResponsiveContainer>
@@ -386,12 +402,14 @@ function StylesTab({ stats }) {
 
 // ═══════════ TRENDS TAB ═══════════
 function TrendsTab({ stats }) {
+  const isMobile = window.innerWidth < 640;
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-display font-bold">Trends</h2>
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-lg sm:text-xl font-display font-bold">Trends</h2>
 
       <ChartCard title="Sessions Over Time — Last 30 Days">
-        <ResponsiveContainer width="100%" height={350}>
+        <ResponsiveContainer width="100%" height={isMobile ? 220 : 350}>
           <AreaChart data={stats.timeline}>
             <defs>
               <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
@@ -400,16 +418,16 @@ function TrendsTab({ stats }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-            <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} />
-            <YAxis tick={{ fill: "#71717a", fontSize: 10 }} allowDecimals={false} />
+            <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 9 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: "#71717a", fontSize: 9 }} allowDecimals={false} width={25} />
             <Tooltip content={<DarkTooltip />} />
-            <Area type="monotone" dataKey="sessions" stroke="#a855f7" fill="url(#trendGrad)" strokeWidth={2.5} dot={{ fill: "#a855f7", r: 3 }} activeDot={{ r: 5, fill: "#e879f9" }} />
+            <Area type="monotone" dataKey="sessions" stroke="#a855f7" fill="url(#trendGrad)" strokeWidth={2.5} dot={{ fill: "#a855f7", r: isMobile ? 2 : 3 }} activeDot={{ r: isMobile ? 4 : 5, fill: "#e879f9" }} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Mode over time implied by summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Stat cards — 1 col mobile, 3 desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
         <StatCard label="Total Sessions" value={stats.totalSessions} icon={Activity} />
         <StatCard label="Today" value={stats.todayCount} icon={TrendingUp} color="text-emerald-400" gradient="from-emerald-600/15" />
         <StatCard
@@ -427,10 +445,11 @@ function TrendsTab({ stats }) {
 // ═══════════ SESSIONS TAB ═══════════
 function SessionsTab({ stats }) {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-display font-bold">Recent Sessions</h2>
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-lg sm:text-xl font-display font-bold">Recent Sessions</h2>
 
-      <div className="glass rounded-xl overflow-hidden">
+      {/* ── Desktop Table ── */}
+      <div className="hidden sm:block glass rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
@@ -440,7 +459,7 @@ function SessionsTab({ stats }) {
                 <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Mode</th>
                 <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Gender</th>
                 <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Skin Tone</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Details</th>
+                <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Duration</th>
                 <th className="px-4 py-3 text-xs font-semibold text-zinc-400">Date</th>
               </tr>
             </thead>
@@ -450,21 +469,11 @@ function SessionsTab({ stats }) {
                   <td className="px-4 py-3 text-zinc-600 text-xs">{i + 1}</td>
                   <td className="px-4 py-3 font-mono text-xs text-zinc-400">{(s.sessionId || "").slice(0, 8)}…</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      s.mode === "photo" ? "bg-primary-600/20 text-primary-300" :
-                      s.mode === "text" ? "bg-cyan-600/20 text-cyan-300" :
-                      s.mode === "form" ? "bg-amber-500/20 text-amber-300" :
-                      "bg-zinc-600/20 text-zinc-400"
-                    }`}>
-                      {s.mode || "photo"}
-                    </span>
+                    <ModeBadge mode={s.mode} />
                   </td>
-                  <td className="px-4 py-3 text-xs text-zinc-300">{s.gender || s.formData?.gender || "—"}</td>
-                  <td className="px-4 py-3 text-xs text-zinc-300">{s.skinTone || s.formData?.skinTone || "—"}</td>
-                  <td className="px-4 py-3 text-xs text-zinc-500 max-w-[200px] truncate">
-                    {s.textPrompt ? `"${s.textPrompt.slice(0, 50)}…"` :
-                     s.formData?.occasion ? `${s.formData.occasion}, ${s.formData.budget}` : "—"}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-zinc-300">{s.userProfile?.gender || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-zinc-300">{s.userProfile?.skinTone || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-zinc-400">{s.durationMs ? `${(s.durationMs / 1000).toFixed(1)}s` : "—"}</td>
                   <td className="px-4 py-3 text-xs text-zinc-500">
                     {s.createdAt ? new Date(s.createdAt).toLocaleDateString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
                   </td>
@@ -479,6 +488,66 @@ function SessionsTab({ stats }) {
           </table>
         </div>
       </div>
+
+      {/* ── Mobile Cards ── */}
+      <div className="sm:hidden space-y-2">
+        {stats.recentSessions.map((s, i) => (
+          <div key={s.sessionId || i} className="glass rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-600 text-[10px] font-bold">#{i + 1}</span>
+                <ModeBadge mode={s.mode} />
+              </div>
+              <span className="text-[10px] text-zinc-500">
+                {s.createdAt ? new Date(s.createdAt).toLocaleDateString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              {s.userProfile?.gender && (
+                <span className="text-zinc-400">
+                  <span className="text-zinc-600">Gender:</span> {s.userProfile.gender}
+                </span>
+              )}
+              {s.userProfile?.skinTone && (
+                <span className="text-zinc-400">
+                  <span className="text-zinc-600">Tone:</span> {s.userProfile.skinTone}
+                </span>
+              )}
+              {s.durationMs && (
+                <span className="text-zinc-400">
+                  <span className="text-zinc-600">Time:</span> {(s.durationMs / 1000).toFixed(1)}s
+                </span>
+              )}
+            </div>
+            <div className="font-mono text-[10px] text-zinc-600 truncate">
+              ID: {s.sessionId || "—"}
+            </div>
+          </div>
+        ))}
+        {stats.recentSessions.length === 0 && (
+          <div className="glass rounded-xl p-8 text-center text-zinc-600 text-sm">
+            No sessions yet.
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+// ── Mode Badge ──
+function ModeBadge({ mode }) {
+  const styles = {
+    photo: "bg-primary-600/20 text-primary-300",
+    "live-capture": "bg-violet-600/20 text-violet-300",
+    text: "bg-cyan-600/20 text-cyan-300",
+    form: "bg-amber-500/20 text-amber-300",
+    "decode-text": "bg-pink-600/20 text-pink-300",
+    "decode-image": "bg-rose-600/20 text-rose-300",
+    "trend-radar": "bg-emerald-600/20 text-emerald-300",
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${styles[mode] || "bg-zinc-600/20 text-zinc-400"}`}>
+      {mode || "unknown"}
+    </span>
   );
 }
