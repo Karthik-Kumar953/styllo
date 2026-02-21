@@ -58,6 +58,26 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: var(--color-surface-900); }
   ::-webkit-scrollbar-thumb { background: var(--color-primary-700); border-radius: 3px; }
+
+  /* Dark-themed form elements */
+  select,
+  option {
+    background-color: var(--color-surface-900);
+    color: #e4e4e7;
+  }
+
+  select {
+    color-scheme: dark;
+  }
+
+  option:checked {
+    background-color: var(--color-primary-700);
+    color: white;
+  }
+
+  option:hover {
+    background-color: var(--color-surface-700);
+  }
 }
 
 /* ──────────────────────────────────────────────
@@ -85,6 +105,24 @@
 
   .glow-rose {
     box-shadow: 0 0 60px rgba(244, 63, 94, 0.15), 0 0 120px rgba(244, 63, 94, 0.05);
+  }
+
+  .generic-input {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #e4e4e7;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .generic-input:focus {
+    border-color: rgba(147, 51, 234, 0.3);
   }
 }
 

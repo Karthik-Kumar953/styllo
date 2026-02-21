@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, ArrowLeft, Camera, Upload, MessageSquare, ClipboardList } from "lucide-react";
+import { Sparkles, ArrowLeft, Camera, Upload, MessageSquare, ClipboardList, Search, Radar } from "lucide-react";
 
 // Landing page
 import Navbar from "./components/landing/Navbar";
@@ -19,19 +20,12 @@ import GenderSelect from "./components/GenderSelect";
 import AnalysisView from "./components/AnalysisView";
 import ResultsView from "./components/ResultsView";
 
+// New features
+import DecodeOutfit from "./components/DecodeOutfit";
+import TrendRadar from "./components/TrendRadar";
+
 // API
 import { getRecommendationsFromText, getRecommendationsFromForm } from "./services/api";
-
-const STEPS = {
-  CHOOSE: "choose",
-  UPLOAD: "upload",
-  LIVE: "live",
-  TEXT: "text",
-  FORM: "form",
-  GENDER: "gender",
-  ANALYZING: "analyzing",
-  RESULTS: "results",
-};
 
 const pageVariants = {
   initial: { opacity: 0, y: 30, scale: 0.97 },
@@ -40,100 +34,104 @@ const pageVariants = {
 };
 
 export default function App() {
-  const [view, setView] = useState("landing");
-  const [step, setStep] = useState(STEPS.CHOOSE);
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/analyze/*" element={<AnalyzerFlow />} />
+    </Routes>
+  );
+}
+
+/* ─── Landing Page ─── */
+function LandingPage() {
+  const navigate = useNavigate();
+  const goToAnalyzer = () => navigate("/analyze");
+
+  return (
+    <div className="min-h-screen w-full bg-surface-950">
+      <Navbar onGetStarted={goToAnalyzer} />
+      <HeroSection onGetStarted={goToAnalyzer} />
+      <Features />
+      <HowItWorks />
+      <Comparison />
+      <Footer onGetStarted={goToAnalyzer} />
+    </div>
+  );
+}
+
+/* ─── Analyzer Flow with proper sub-routes ─── */
+function AnalyzerFlow() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [gender, setGender] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  const goToAnalyzer = useCallback(() => {
-    setView("analyzer");
-    setStep(STEPS.CHOOSE);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  const goToLanding = useCallback(() => {
-    setView("landing");
+  const goHome = useCallback(() => {
     setImageFile(null);
     setImagePreview(null);
     setGender(null);
     setAnalysisResult(null);
-    setStep(STEPS.CHOOSE);
+    navigate("/");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  }, [navigate]);
 
-  // Photo paths → gender → analyze
+  const goToChoose = useCallback(() => {
+    navigate("/analyze");
+  }, [navigate]);
+
+  // Photo paths
   const handleImageSelect = useCallback((file) => {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-    setStep(STEPS.GENDER);
-  }, []);
+    navigate("/analyze/gender");
+  }, [navigate]);
 
   const handleLiveCapture = useCallback((file, preview) => {
     setImageFile(file);
     setImagePreview(preview);
-    setStep(STEPS.GENDER);
-  }, []);
+    navigate("/analyze/gender");
+  }, [navigate]);
 
   const handleGenderSelect = useCallback((g) => {
     setGender(g);
-    setStep(STEPS.ANALYZING);
-  }, []);
+    navigate("/analyze/analyzing");
+  }, [navigate]);
 
   const handleAnalysisComplete = useCallback((result) => {
     setAnalysisResult(result);
-    setStep(STEPS.RESULTS);
-  }, []);
+    navigate("/analyze/results");
+  }, [navigate]);
 
-  // Text prompt → skip gender/analysis, call API directly
+  // Text prompt
   const handleTextSubmit = useCallback(async (text) => {
     const apiResult = await getRecommendationsFromText(text);
-    setAnalysisResult({
-      skinTone: "Self-described",
-      confidence: 1,
-      ...apiResult,
-    });
-    setStep(STEPS.RESULTS);
-  }, []);
+    setAnalysisResult({ skinTone: "Self-described", confidence: 1, ...apiResult });
+    navigate("/analyze/results");
+  }, [navigate]);
 
-  // Form → skip gender/analysis, call API directly
+  // Form submit
   const handleFormSubmit = useCallback(async (formData) => {
     const apiResult = await getRecommendationsFromForm(formData);
-    setAnalysisResult({
-      skinTone: formData.skinTone,
-      confidence: 1,
-      ...apiResult,
-    });
+    setAnalysisResult({ skinTone: formData.skinTone, confidence: 1, ...apiResult });
     setGender(formData.gender);
-    setStep(STEPS.RESULTS);
-  }, []);
+    navigate("/analyze/results");
+  }, [navigate]);
 
   const handleRestart = useCallback(() => {
-    setStep(STEPS.CHOOSE);
     setImageFile(null);
     setImagePreview(null);
     setGender(null);
     setAnalysisResult(null);
-  }, []);
+    navigate("/analyze");
+  }, [navigate]);
 
-  // ─── Landing Page ───
-  if (view === "landing") {
-    return (
-      <div className="min-h-screen w-full bg-surface-950">
-        <Navbar onGetStarted={goToAnalyzer} />
-        <HeroSection onGetStarted={goToAnalyzer} />
-        <Features />
-        <HowItWorks />
-        <Comparison />
-        <Footer onGetStarted={goToAnalyzer} />
-      </div>
-    );
-  }
-
-  // ─── Analyzer Flow ───
-  const isWide = step === STEPS.RESULTS;
-  const isForm = step === STEPS.FORM;
+  // Determine layout width from current route
+  const subPath = location.pathname.replace("/analyze", "").replace(/^\//, "");
+  const isWide = subPath === "results";
+  const isForm = subPath === "form";
+  const isFeature = subPath === "decode" || subPath === "trends";
 
   return (
     <div className="min-h-screen w-full bg-surface-950 relative overflow-hidden">
@@ -147,7 +145,7 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full glass border-b border-white/5">
         <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
-          <button onClick={goToLanding} className="cursor-pointer flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
+          <button onClick={goHome} className="cursor-pointer flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" /> Home
           </button>
           <div className="flex items-center gap-2">
@@ -158,72 +156,86 @@ export default function App() {
         </div>
       </header>
 
-      {/* Step content */}
+      {/* Content */}
       <main className={`relative z-10 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-16 ${
-        isWide ? "max-w-6xl" : isForm ? "max-w-xl" : "max-w-lg"
+        isWide ? "max-w-6xl" : isForm ? "max-w-2xl" : isFeature ? "max-w-5xl" : "max-w-3xl"
       }`}>
         <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route index element={
+              <motion.div {...pageVariants}>
+                <ChooseMode
+                  onCamera={() => navigate("/analyze/live")}
+                  onUpload={() => navigate("/analyze/upload")}
+                  onText={() => navigate("/analyze/text")}
+                  onForm={() => navigate("/analyze/form")}
+                  onDecode={() => navigate("/analyze/decode")}
+                  onTrends={() => navigate("/analyze/trends")}
+                />
+              </motion.div>
+            } />
 
-          {step === STEPS.CHOOSE && (
-            <motion.div key="choose" {...pageVariants}>
-              <ChooseMode
-                onCamera={() => setStep(STEPS.LIVE)}
-                onUpload={() => setStep(STEPS.UPLOAD)}
-                onText={() => setStep(STEPS.TEXT)}
-                onForm={() => setStep(STEPS.FORM)}
-              />
-            </motion.div>
-          )}
+            <Route path="upload" element={
+              <motion.div {...pageVariants}>
+                <ImageUpload onImageSelect={handleImageSelect} onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.UPLOAD && (
-            <motion.div key="upload" {...pageVariants}>
-              <ImageUpload onImageSelect={handleImageSelect} onBack={() => setStep(STEPS.CHOOSE)} />
-            </motion.div>
-          )}
+            <Route path="live" element={
+              <motion.div {...pageVariants}>
+                <LiveCapture onCapture={handleLiveCapture} onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.LIVE && (
-            <motion.div key="live" {...pageVariants}>
-              <LiveCapture onCapture={handleLiveCapture} onBack={() => setStep(STEPS.CHOOSE)} />
-            </motion.div>
-          )}
+            <Route path="text" element={
+              <motion.div {...pageVariants}>
+                <TextPrompt onSubmit={handleTextSubmit} onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.TEXT && (
-            <motion.div key="text" {...pageVariants}>
-              <TextPrompt onSubmit={handleTextSubmit} onBack={() => setStep(STEPS.CHOOSE)} />
-            </motion.div>
-          )}
+            <Route path="form" element={
+              <motion.div {...pageVariants}>
+                <StyleForm onSubmit={handleFormSubmit} onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.FORM && (
-            <motion.div key="form" {...pageVariants}>
-              <StyleForm onSubmit={handleFormSubmit} onBack={() => setStep(STEPS.CHOOSE)} />
-            </motion.div>
-          )}
+            <Route path="decode" element={
+              <motion.div {...pageVariants}>
+                <DecodeOutfit onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.GENDER && (
-            <motion.div key="gender" {...pageVariants}>
-              <GenderSelect imagePreview={imagePreview} onSelect={handleGenderSelect} onBack={() => setStep(STEPS.CHOOSE)} />
-            </motion.div>
-          )}
+            <Route path="trends" element={
+              <motion.div {...pageVariants}>
+                <TrendRadar onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.ANALYZING && (
-            <motion.div key="analyzing" {...pageVariants}>
-              <AnalysisView imageFile={imageFile} gender={gender} onComplete={handleAnalysisComplete} onError={handleRestart} />
-            </motion.div>
-          )}
+            <Route path="gender" element={
+              <motion.div {...pageVariants}>
+                <GenderSelect imagePreview={imagePreview} onSelect={handleGenderSelect} onBack={goToChoose} />
+              </motion.div>
+            } />
 
-          {step === STEPS.RESULTS && (
-            <motion.div key="results" {...pageVariants}>
-              <ResultsView data={analysisResult} gender={gender} onRestart={handleRestart} />
-            </motion.div>
-          )}
+            <Route path="analyzing" element={
+              <motion.div {...pageVariants}>
+                <AnalysisView imageFile={imageFile} gender={gender} onComplete={handleAnalysisComplete} onError={handleRestart} />
+              </motion.div>
+            } />
 
+            <Route path="results" element={
+              <motion.div {...pageVariants}>
+                <ResultsView data={analysisResult} gender={gender} onRestart={handleRestart} />
+              </motion.div>
+            } />
+          </Routes>
         </AnimatePresence>
       </main>
     </div>
   );
 }
 
-// ── Choose Mode Component — 4 options ──
+/* ── Choose Mode Component — 6 options, full-width responsive grid ── */
 
 const modes = [
   {
@@ -265,30 +277,50 @@ const modes = [
     badge: "NO PHOTO",
     onClickKey: "onForm",
   },
+  {
+    key: "decode",
+    icon: Search,
+    label: "Decode Outfit",
+    desc: "Describe or upload any outfit → AI adapts it for you",
+    gradient: "from-emerald-500 to-teal-600",
+    shadow: "shadow-emerald-500/20",
+    badge: "HOT",
+    onClickKey: "onDecode",
+  },
+  {
+    key: "trends",
+    icon: Radar,
+    label: "Trend Radar",
+    desc: "See what's trending this season for your style",
+    gradient: "from-violet-500 to-purple-700",
+    shadow: "shadow-violet-500/20",
+    badge: "LIVE",
+    onClickKey: "onTrends",
+  },
 ];
 
-function ChooseMode({ onCamera, onUpload, onText, onForm }) {
-  const handlers = { onCamera, onUpload, onText, onForm };
+function ChooseMode({ onCamera, onUpload, onText, onForm, onDecode, onTrends }) {
+  const handlers = { onCamera, onUpload, onText, onForm, onDecode, onTrends };
 
   return (
     <div className="w-full flex flex-col items-center gap-6 pt-8">
       <div className="text-center mb-2">
         <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
-          Let's Analyze Your <span className="gradient-text">Style</span>
+          Let&apos;s Analyze Your <span className="gradient-text">Style</span>
         </h2>
-        <p className="text-zinc-400 text-sm">Choose how you'd like to get started</p>
+        <p className="text-zinc-400 text-sm">Choose how you&apos;d like to get started</p>
       </div>
 
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {modes.map((m) => (
           <motion.button
             key={m.key}
             whileHover={{ scale: 1.03, y: -4 }}
             whileTap={{ scale: 0.97 }}
             onClick={handlers[m.onClickKey]}
-            className={`cursor-pointer group relative flex flex-col items-center gap-4 p-7 rounded-2xl glass hover:bg-white/[0.04] transition-all border border-transparent hover:border-primary-500/20`}
+            className="cursor-pointer group relative flex flex-col items-center gap-4 p-7 rounded-2xl glass hover:bg-white/4 transition-all border border-transparent hover:border-primary-500/20"
           >
-            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${m.gradient} flex items-center justify-center shadow-lg ${m.shadow}`}>
+            <div className={`w-14 h-14 rounded-2xl bg-linear-to-br ${m.gradient} flex items-center justify-center shadow-lg ${m.shadow}`}>
               <m.icon className="w-6 h-6 text-white" />
             </div>
             <div className="text-center">

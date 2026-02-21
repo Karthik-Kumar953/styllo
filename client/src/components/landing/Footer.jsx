@@ -30,7 +30,7 @@ export default function Footer({ onGetStarted }) {
           </div>
 
           <p className="flex items-center gap-1 text-xs text-zinc-600">
-            Built with <Heart className="w-3 h-3 text-rose-500" /> for Hackathons
+            Built with <Heart className="w-3 h-3 text-rose-500" /> by TalentXchange
           </p>
         </div>
       </div>

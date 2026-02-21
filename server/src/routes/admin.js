@@ -20,40 +20,53 @@ router.get("/stats", async (req, res) => {
             { $sort: { count: -1 } },
           ],
           byGender: [
-            { $match: { gender: { $ne: null } } },
-            { $group: { _id: "$gender", count: { $sum: 1 } } },
+            { $match: { "userProfile.gender": { $ne: null } } },
+            { $group: { _id: "$userProfile.gender", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
           ],
           bySkinTone: [
-            { $match: { skinTone: { $ne: null } } },
-            { $group: { _id: "$skinTone", count: { $sum: 1 } } },
+            { $match: { "userProfile.skinTone": { $ne: null } } },
+            { $group: { _id: "$userProfile.skinTone", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
           ],
           byUndertone: [
-            { $match: { "formData.undertone": { $ne: null } } },
-            { $group: { _id: "$formData.undertone", count: { $sum: 1 } } },
+            { $match: { "userProfile.undertone": { $ne: null } } },
+            { $group: { _id: "$userProfile.undertone", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
           ],
           byAgeRange: [
-            { $match: { "formData.ageRange": { $ne: null } } },
-            { $group: { _id: "$formData.ageRange", count: { $sum: 1 } } },
+            { $match: { "userProfile.ageRange": { $ne: null } } },
+            { $group: { _id: "$userProfile.ageRange", count: { $sum: 1 } } },
             { $sort: { _id: 1 } },
           ],
           byOccasion: [
-            { $match: { "formData.occasion": { $ne: null } } },
-            { $group: { _id: "$formData.occasion", count: { $sum: 1 } } },
+            { $match: { "userProfile.occasion": { $ne: null } } },
+            { $group: { _id: "$userProfile.occasion", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
           ],
           byBudget: [
-            { $match: { "formData.budget": { $ne: null } } },
-            { $group: { _id: "$formData.budget", count: { $sum: 1 } } },
+            { $match: { "userProfile.budget": { $ne: null } } },
+            { $group: { _id: "$userProfile.budget", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
           ],
           byStylePref: [
-            { $match: { "formData.stylePreferences": { $exists: true, $ne: [] } } },
-            { $unwind: "$formData.stylePreferences" },
-            { $group: { _id: "$formData.stylePreferences", count: { $sum: 1 } } },
+            { $match: { "userProfile.stylePreferences": { $exists: true, $ne: [] } } },
+            { $unwind: "$userProfile.stylePreferences" },
+            { $group: { _id: "$userProfile.stylePreferences", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
+          ],
+          avgDuration: [
+            { $match: { durationMs: { $gt: 0 } } },
+            {
+              $group: {
+                _id: "$mode",
+                avgMs: { $avg: "$durationMs" },
+                minMs: { $min: "$durationMs" },
+                maxMs: { $max: "$durationMs" },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { _id: 1 } },
           ],
           timeline: [
             {
@@ -84,7 +97,7 @@ router.get("/stats", async (req, res) => {
       Session.find()
         .sort({ createdAt: -1 })
         .limit(20)
-        .select("sessionId mode skinTone gender formData textPrompt createdAt")
+        .select("sessionId mode userProfile input durationMs createdAt")
         .lean(),
     ]);
 
@@ -96,7 +109,7 @@ router.get("/stats", async (req, res) => {
       stats: {
         totalSessions,
         todayCount,
-        byMode: formatAgg(stats.byMode, "photo"),
+        byMode: formatAgg(stats.byMode, "unknown"),
         byGender: formatAgg(stats.byGender),
         bySkinTone: formatAgg(stats.bySkinTone),
         byUndertone: formatAgg(stats.byUndertone),
@@ -104,6 +117,13 @@ router.get("/stats", async (req, res) => {
         byOccasion: formatAgg(stats.byOccasion),
         byBudget: formatAgg(stats.byBudget),
         byStylePref: formatAgg(stats.byStylePref),
+        avgDuration: stats.avgDuration.map((d) => ({
+          mode: d._id,
+          avgMs: Math.round(d.avgMs),
+          minMs: d.minMs,
+          maxMs: d.maxMs,
+          count: d.count,
+        })),
         timeline: filledTimeline,
         recentSessions,
       },

@@ -1,6 +1,8 @@
-import { motion } from "framer-motion";
-import { Palette, Shirt, Gem, Scissors, Sparkles, RotateCcw, AlertCircle, ShoppingBag, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Palette, Shirt, Gem, Scissors, Sparkles, RotateCcw, AlertCircle, ShoppingBag, ExternalLink, Dna, Download, Crown, Star } from "lucide-react";
 import { generateShoppingLinks } from "../utils/affiliateLinks";
+import StyleDNACard from "./StyleDNACard";
 
 const TONE_COLORS = {
   Fair: "#FDDCB5", Medium: "#D4A574", Olive: "#A67C52", Deep: "#6B4226",
@@ -12,8 +14,11 @@ const sectionAnim = {
 };
 
 export default function ResultsView({ data, gender, onRestart }) {
+  const [showDNACard, setShowDNACard] = useState(false);
+
   if (!data?.recommendations) return null;
   const r = data.recommendations;
+  const dna = r.styleDNA;
   const outfitsWithLinks = generateShoppingLinks(data.skinTone, gender, r.outfitSuggestions || []);
 
   return (
@@ -23,7 +28,7 @@ export default function ResultsView({ data, gender, onRestart }) {
       <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
         className="w-full relative overflow-hidden rounded-2xl glass glow-purple"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 via-transparent to-rose-500/10" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary-600/10 via-transparent to-rose-500/10" />
         <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8 lg:p-10">
           {/* Skin tone swatch */}
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full shadow-2xl border-4 border-surface-900 shrink-0"
@@ -37,7 +42,7 @@ export default function ResultsView({ data, gender, onRestart }) {
               <div className="w-36 h-2 rounded-full bg-surface-700 overflow-hidden">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${data.confidence * 100}%` }}
                   transition={{ duration: 1, delay: 0.4 }}
-                  className="h-full rounded-full bg-gradient-to-r from-primary-400 to-accent-400"
+                  className="h-full rounded-full bg-linear-to-r from-primary-400 to-accent-400"
                 />
               </div>
               <span className="text-sm text-zinc-300 font-medium">{Math.round(data.confidence * 100)}% match</span>
@@ -45,6 +50,80 @@ export default function ResultsView({ data, gender, onRestart }) {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Style DNA Section — NEW ── */}
+      {dna && (
+        <motion.section custom={0.5} variants={sectionAnim} initial="hidden" animate="visible" className="w-full">
+          <div className="flex items-center gap-2.5 mb-4">
+            <span className="text-primary-400"><Dna className="w-5 h-5" /></span>
+            <h3 className="font-display font-semibold text-white text-lg">Your Style DNA</h3>
+          </div>
+
+          <div className="glass rounded-2xl p-6 border border-white/5 relative overflow-hidden">
+            {/* Background accent */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-linear-to-bl from-primary-600/10 to-transparent rounded-bl-full pointer-events-none" />
+
+            {/* Archetype + Tagline */}
+            <div className="relative z-10 mb-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-300">Style Archetype</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">{dna.archetype}</h2>
+              <p className="text-zinc-400 text-sm italic">"{dna.tagline}"</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 relative z-10">
+              <DNAStat label="Color Season" value={dna.colorSeason} />
+              <DNAStat label="Metal Match" value={dna.metalMatch} />
+              <DNAStat label="Pattern" value={dna.signaturePattern} />
+              <DNAStat label="Style Score" value={`${dna.styleScore || 85}/100`} />
+            </div>
+
+            {/* Fabrics */}
+            {dna.bestFabrics?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-5 relative z-10">
+                {dna.bestFabrics.map((f, i) => (
+                  <span key={i} className="px-3 py-1.5 rounded-full bg-surface-700/80 text-zinc-300 text-xs font-medium border border-white/5">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Celebrity + Share Button */}
+            <div className="flex items-center justify-between relative z-10">
+              {dna.celebrityMatch && (
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-primary-400" />
+                  <span className="text-sm text-zinc-400">Style Twin: <strong className="text-primary-300">{dna.celebrityMatch}</strong></span>
+                </div>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => setShowDNACard(true)}
+                className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-xs font-bold shadow-lg shadow-primary-500/20 hover:bg-primary-500 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Generate Shareable Card
+              </motion.button>
+            </div>
+          </div>
+        </motion.section>
+      )}
+
+      {/* ── DNA Card Modal ── */}
+      <AnimatePresence>
+        {showDNACard && (
+          <StyleDNACard
+            dna={dna}
+            colors={r.recommendedColors}
+            skinTone={data.skinTone}
+            onClose={() => setShowDNACard(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Two-column layout for desktop ── */}
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -107,7 +186,7 @@ export default function ResultsView({ data, gender, onRestart }) {
               <div className="flex flex-col gap-3">
                 {r.hairstyleTips.map((h, j) => (
                   <div key={j} className="flex gap-4 p-4 rounded-xl glass items-start">
-                    <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-primary-600/30 to-rose-500/20 flex items-center justify-center text-sm font-bold text-primary-300">
+                    <div className="w-10 h-10 shrink-0 rounded-xl bg-linear-to-br from-primary-600/30 to-rose-500/20 flex items-center justify-center text-sm font-bold text-primary-300">
                       {j + 1}
                     </div>
                     <div>
@@ -164,7 +243,7 @@ export default function ResultsView({ data, gender, onRestart }) {
                       {outfit.links.map((link, j) => (
                         <motion.a key={j} href={link.url} target="_blank" rel="noopener noreferrer"
                           whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                          className="cursor-pointer flex items-center justify-between px-4 py-2.5 rounded-lg bg-gradient-to-r from-primary-600/15 to-rose-500/10 border border-primary-500/20 text-primary-200 text-xs hover:border-primary-400/40 transition-colors"
+                          className="cursor-pointer flex items-center justify-between px-4 py-2.5 rounded-lg bg-linear-to-r from-primary-600/15 to-rose-500/10 border border-primary-500/20 text-primary-200 text-xs hover:border-primary-400/40 transition-colors"
                         >
                           <span className="truncate mr-2">{link.item}</span>
                           <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -192,10 +271,19 @@ export default function ResultsView({ data, gender, onRestart }) {
 
       {/* Restart */}
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onRestart}
-        className="cursor-pointer w-full mt-2 flex items-center justify-center gap-2 py-4 rounded-xl glass hover:bg-white/[0.04] text-zinc-300 font-medium text-sm transition-all"
+        className="cursor-pointer w-full mt-2 flex items-center justify-center gap-2 py-4 rounded-xl glass hover:bg-white/4 text-zinc-300 font-medium text-sm transition-all"
       >
         <RotateCcw className="w-4 h-4" /> Analyze Another Photo
       </motion.button>
+    </div>
+  );
+}
+
+function DNAStat({ label, value }) {
+  return (
+    <div className="p-3 rounded-xl bg-surface-900/60 border border-white/5">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
+      <p className="text-sm font-bold text-zinc-200">{value || "—"}</p>
     </div>
   );
 }
